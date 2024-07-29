@@ -1,8 +1,8 @@
-import os
 import argparse
 import glob
 from pathlib import Path
 
+import mayavi.mlab as mlab
 import numpy as np
 import torch
 
@@ -10,6 +10,7 @@ from pcdet.config import cfg, cfg_from_yaml_file
 from pcdet.datasets import DatasetTemplate
 from pcdet.models import build_network, load_data_to_gpu
 from pcdet.utils import common_utils
+from visual_utils import visualize_utils as V
 
 
 class DemoDataset(DatasetTemplate):
@@ -56,10 +57,10 @@ def parse_config():
     parser = argparse.ArgumentParser(description='arg parser')
     parser.add_argument('--cfg_file', type=str, default='cfgs/kitti_models/second.yaml',
                         help='specify the config for demo')
-    parser.add_argument('--data_path', type=str, default='demo_data',
-                        help='specify the point cloud data file or directory')
-    parser.add_argument('--pred_path', required=True, type=str, help='prediction result saving directory')
-    parser.add_argument('--ckpt', type=str, default=None, help='specify the pretrained model')
+    parser.add_argument('--pcd_path', type=str, default='demo_data',
+                        help='specify the point cloud data directory')
+    parser.add_argument('--pred_path', type=str, required=True, help='prediction result storing directory')
+    parser.add_argument('--vis_path', type=str, required=True, help='visualization result storing directory')
     parser.add_argument('--ext', type=str, default='.bin', help='specify the extension of your point cloud data file')
 
     args = parser.parse_args()
@@ -78,34 +79,28 @@ def main():
     )
     logger.info(f'Total number of samples: \t{len(demo_dataset)}')
 
-    model = build_network(model_cfg=cfg.MODEL, num_class=len(cfg.CLASS_NAMES), dataset=demo_dataset)
-    model.load_params_from_file(filename=args.ckpt, logger=logger, to_cpu=True)
-    model.cuda()
-    model.eval()
-    
-    os.makedirs(args.pred_path, exist_ok=True)
-    
-    with torch.no_grad():
-        for idx, data_dict in enumerate(demo_dataset):
-            logger.info(f'Detection sample index: \t{idx + 1}')
-            data_dict = demo_dataset.collate_batch([data_dict])
-            load_data_to_gpu(data_dict)
-            pred_dicts, _ = model.forward(data_dict)
+    for idx, data_dict in enumerate(demo_dataset):
+        logger.info(f'Visualized sample index: \t{idx + 1}')
+        pred_filename = str(idx + 1) + '.txt'
+        combined_array = np.loadtxt(os.path.join(args.pred_path, pred_filename), delimiter=',')
+        ref_boxes = combined_array[:, :7]  # n * 7
+        ref_scores = np.squeeze(combined_array[:, 7])  # n
+        ref_labels = np.squeeze(combined_array[:, 8])  # n
 
-            pred_filename = str(idx + 1) + '.txt'
+        ref_boxes = torch.from_numpy(ref_boxes)
+        ref_scores = torch.from_numpy(ref_scores)
+        ref_labels = torch.from_numpy(ref_labels)
 
-            ref_boxes = pred_dicts[0]['pred_boxes'].cpu().numpy()  # n * 7
-            ref_scores = pred_dicts[0]['pred_scores'].cpu().numpy()
-            ref_scores = np.expand_dims(ref_scores, axis = 1)  # n * 1
-            ref_labels = pred_dicts[0]['pred_labels'].cpu().numpy()
-            ref_labels = np.expand_dims(ref_labels, axis = 1)  # n * 1
 
-            combined_array = np.hstack((ref_boxes, ref_scores, ref_labels))  # n * 9
+        V.draw_scenes(
+            points=data_dict['points'][:, 1:], ref_boxes=ref_boxes,
+            ref_scores=ref_scores, ref_labels=ref_labels
+        )
 
-            np.savetxt(os.path.join(args.pred_path, pred_filename), combined_array, delimiter=',', fmt='%.7f')  
-
-    logger.info('Detection done.')
-
+        mlab.show(stop=True)
+        vis_filename = str(idx + 1) + '.png'
+        mlab.savefig(os.path.join(args.vis_path), vis_filename)
+    logger.info('Done.')
 
 if __name__ == '__main__':
     main()
