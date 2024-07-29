@@ -80,3 +80,9 @@ sh scripts/dist_train.sh ${NUM_GPUS} --cfg_file ${CONFIG_FILE}
 ```shell script
 python test.py --cfg_file ${CONFIG_FILE} --ckpt ${CKPT}
 ```
+
+### Detecting
+* Use a pretrained model to do detection with a single GPU, the results will be stored in txt files:
+```shell script
+python detect.py --cfg_file ${CONFIG_FILE} --ckpt ${CKPT} --data_path ${PCD_PATH} --pred_path ${SAVE_PATH}
+```
