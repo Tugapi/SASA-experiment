@@ -9,6 +9,7 @@ This repository is the application of Semantics-Augmented Set Abstraction (SASA)
 * PyTorch = 1.6.0
 * CUDA = 10.2
 * CMake >= 3.13.2
+* scikit-build
 * [`spconv v1.2`](https://github.com/traveller59/spconv/tree/v1.2.1)
 
 ### Installation
@@ -18,6 +19,8 @@ git clone https://github.com/traveller59/spconv.git
 cd spconv
 git checkout v1.2.1
 git submodule update --init --recursive
+sudo apt-get update
+sudo apt-get install libboost-all-dev
 python setup.py bdist_wheel
 pip install ./dist/spconv-1.2.1-cp36-cp36m-linux_x86_64.whl   # wheel file name may be different
 cd ..
